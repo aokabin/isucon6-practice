@@ -319,8 +319,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
 	re := regexp.MustCompile("("+keywords+")")
-	kw2sha := make(map[string]string)
-	//includedKeys := make(map[string]struct{})
+	//kw2sha := make(map[string]string)
+	includedKeys := make(map[string]struct{})
 	//fmt.Println("===Start===")
 	//bf_t := time.Now()
 	//fmt.Println(bf_t)
@@ -329,11 +329,11 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 	// ここでやっている後方置換は
 	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
 	// その与えられたやつでmap作ってる
-	content = re.ReplaceAllStringFunc(content, func(kw string) string {
-		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		//includedKeys[kw] = struct{}{}
-		return kw2sha[kw]
-		//return ""
+	_ = re.ReplaceAllStringFunc(content, func(kw string) string {
+		//kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+		includedKeys[kw] = struct{}{}
+		//return kw2sha[kw]
+		return ""
 	})
 
 
@@ -349,7 +349,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 	content = html.EscapeString(content)
 
 	// key, value
-	for kw, hash := range kw2sha {
+	for kw, _ := range includedKeys {
+	//for kw, _ := range kw2sha {
 		// uに "http://hostname/keyword/実際のkeyword" が入る
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
@@ -358,7 +359,7 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 		// contentのhashをlinkに全て書き換える
 		// ここでやっているのは、hash文字列をlinkに差し替えること
 		// ということは、別に最初からkeywordでいいのでは...？
-		content = strings.Replace(content, hash, link, -1)
+		content = strings.Replace(content, kw, link, -1)
 	}
 
 	// Q1
