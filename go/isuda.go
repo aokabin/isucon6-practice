@@ -312,10 +312,6 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	if content == "" {
 		return ""
 	}
-	// 全てのentryのkeywordを文字列正規表現化してkeywordsにappend
-	for _, entry := range entries {
-		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
-	}
 
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
 	re := regexp.MustCompile("("+strings.Join(keywords, "|")+")")
