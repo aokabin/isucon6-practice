@@ -553,13 +553,13 @@ func main() {
 func setKeywords() []string {
 	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
 	rows, err := db.Query(`
-		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
+		SELECT keyword FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
 	`)
 	panicIf(err)
 	entries := make([]*Entry, 0)
 	for rows.Next() {
 		e := Entry{}
-		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
+		err := rows.Scan(&e.Keyword)
 		panicIf(err)
 		entries = append(entries, &e)
 	}
