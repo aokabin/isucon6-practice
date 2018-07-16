@@ -257,8 +257,8 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword := mux.Vars(r)["keyword"]
-	query := `SELECT * FROM entry WHERE keyword=?`
+	keyword, _ := url.QueryUnescape(mux.Vars(r)["keyword"])
+	query := "SELECT * FROM entry WHERE keyword = ?"
 	row := db.QueryRow(query, keyword)
 	e := Entry{}
 	err := row.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -288,7 +288,7 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword := mux.Vars(r)["keyword"]
+	keyword, _ := url.QueryUnescape(mux.Vars(r)["keyword"])
 	if keyword == "" {
 		badRequest(w)
 		return
