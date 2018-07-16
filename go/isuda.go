@@ -407,6 +407,9 @@ func main() {
 		user = "root"
 	}
 	password := os.Getenv("ISUDA_DB_PASSWORD")
+	if password == "" {
+		password = "root"
+	}
 	dbname := os.Getenv("ISUDA_DB_NAME")
 	if dbname == "" {
 		dbname = "isuda"
