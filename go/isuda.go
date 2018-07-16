@@ -104,7 +104,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		panicIf(err)
 	}
 	entries := make([]*Entry, 0, 10)
-	keywords := setKeywords()
+	keywords := setJoinedKeywords()
 	for rows.Next() {
 		e := Entry{}
 		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -268,7 +268,7 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 		notFound(w)
 		return
 	}
-	keywords := setKeywords()
+	keywords := setJoinedKeywords()
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
 
@@ -312,41 +312,37 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // html化する関数かな
-func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []string) string {
-	fmt.Println("===Start===")
-	bf_t := time.Now()
-	fmt.Println(bf_t)
-
+func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords string) string {
 	if content == "" {
 		return ""
 	}
 
-
-
-	joinedKeywords := strings.Join(keywords, "|")
-	//pp.Println(joinedKeywords)
-
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
-	re := regexp.MustCompile("("+joinedKeywords+")")
+	re := regexp.MustCompile("("+keywords+")")
 	//kw2sha := make(map[string]string)
-	//kw2sha := make(map[string]struct{})
+	includedKeys := make(map[string]struct{})
+	fmt.Println("===Start===")
+	bf_t := time.Now()
+	fmt.Println(bf_t)
 	// 後方置換やっているらしい
 	// TODO: P1
 	// ここでやっている後方置換は
 	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
 	// その与えられたやつでmap作ってる
-	//content = re.ReplaceAllStringFunc(content, func(kw string) string {
-	//	kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-	//	kw2sha[kw] = struct{}{}
-	//})
+	_ = re.ReplaceAllStringFunc(content, func(kw string) string {
+		//kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+		includedKeys[kw] = struct{}{}
+		return ""
+	})
+
 
 	// TODO: Q1
-	// 一致するキーワード抜き出した
-	includedKeys := re.FindAllString(content, -1)
+	// 一致するキーワード抜き出した、けどこれは重複している！
+	//includedKeys := re.FindAllString(content, -1)
+	pp.Println(includedKeys)
 
-
-	// contentは、元のcontentの置換を繰り返した文字列が入っている
-	pp.Println(content)
+	af_t := time.Now()
+	fmt.Println(af_t.Sub(bf_t))
 
 	// ここでcontentをescape
 	content = html.EscapeString(content)
@@ -365,15 +361,12 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	//}
 
 	// Q1
-	for _, kw := range includedKeys {
+	for kw, _ := range includedKeys {
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
 		content = strings.Replace(content, kw, link, -1)
 	}
-
-	af_t := time.Now()
-	fmt.Println(af_t.Sub(bf_t))
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
@@ -524,11 +517,12 @@ func main() {
 
 // NOTE: Original Methods
 
-func setKeywords() []string {
+func setJoinedKeywords() string {
 	fmt.Println("===Start===")
 	bf_t := time.Now()
 	fmt.Println(bf_t)
 
+	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
 	rows, err := db.Query(`
 		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
 	`)
@@ -549,5 +543,7 @@ func setKeywords() []string {
 	af_t := time.Now()
 	fmt.Println(af_t.Sub(bf_t))
 
-	return keywords
+	joinedKeywords := strings.Join(keywords, "|")
+
+	return joinedKeywords
 }
