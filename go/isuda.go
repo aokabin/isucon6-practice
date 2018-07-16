@@ -43,6 +43,8 @@ var (
 	store   *sessions.CookieStore
 
 	errInvalidUser = errors.New("Invalid User")
+
+	oKeywords []string
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -80,6 +82,8 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	panicIf(err)
 	defer resp.Body.Close()
 
+	oKeywords = setKeywords()
+
 	re.JSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
 
@@ -105,7 +109,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		panicIf(err)
 	}
 	entries := make([]*Entry, 0, 10)
-	keywords := setKeywords()
+	keywords := oKeywords
 	for rows.Next() {
 		e := Entry{}
 		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -175,6 +179,8 @@ func keywordPostHandler(w http.ResponseWriter, r *http.Request) {
 		author_id = ?, keyword = ?, description = ?, updated_at = NOW()
 	`, userID, keyword, description, userID, keyword, description)
 	panicIf(err)
+
+	oKeywords = append(oKeywords, keyword)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -269,7 +275,7 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 		notFound(w)
 		return
 	}
-	keywords := setKeywords()
+	keywords := oKeywords
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
 
