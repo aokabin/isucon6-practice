@@ -25,6 +25,7 @@ import (
 	"github.com/unrolled/render"
 	//"time"
 	//"github.com/k0kubun/pp"
+	"github.com/k0kubun/pp"
 )
 
 const (
@@ -317,8 +318,9 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		return ""
 	}
 
+	//joinedKeyWords := joinedKeyWords(keywords)
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
-	//re := regexp.MustCompile("("+keywords+")")
+	//re := regexp.MustCompile("("+joinedKeyWords+")")
 	//kw2sha := make(map[string]string)
 	//includedKeys := make(map[string]struct{})
 	//fmt.Println("===Start===")
@@ -331,16 +333,29 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	// その与えられたやつでmap作ってる
 	//content = re.ReplaceAllStringFunc(content, func(kw string) string {
 	//	kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-	//	//includedKeys[kw] = struct{}{}
+	////	//includedKeys[kw] = struct{}{}
 	//	return kw2sha[kw]
-	//	//return ""
+	////	//return ""
 	//})
 
+	// TODO: Q2
+	// 長いものからhashにすることで、含む短い単語をリンクにさせないようにしている
+	hashedContent := content
+	includedKeys := make(map[string]string)
+	for _, kw := range keywords {
+		if strings.Index(content, kw) != -1 {
+			hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+			includedKeys[kw] = hash
+			hashedContent = strings.Replace(hashedContent, kw, hash, -1)
+		}
+	}
+
+	content = hashedContent
 
 	// TODO: Q1
 	// 一致するキーワード抜き出した、けどこれは重複している！
 	//includedKeys := re.FindAllString(content, -1)
-	//pp.Println(includedKeys)
+
 
 	//af_t := time.Now()
 	//fmt.Println(af_t.Sub(bf_t))
@@ -369,12 +384,22 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	//	content = strings.Replace(content, kw, link, -1)
 	//}
 
-	for _, kw := range keywords {
+	//for _, kw := range keywords {
+	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+	//	panicIf(err)
+	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+	//	content = strings.Replace(content, kw, link, -1)
+	//}
+
+	// TODO: Q2
+	for kw, hash := range includedKeys {
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		content = strings.Replace(content, kw, link, -1)
+		content = strings.Replace(content, hash, link, -1)
 	}
+
+	pp.Println(content)
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
@@ -545,4 +570,9 @@ func setKeywords() []string {
 	}
 
 	return keywords
+}
+
+func joinedKeyWords(keywords []string) string {
+	return strings.Join(keywords, "|")
+
 }
