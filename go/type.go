@@ -44,3 +44,8 @@ type TopResponse struct {
 	LastPage int
 	Pages    []int
 }
+
+type GetKeyWordResponse struct {
+	Context context.Context
+	Entry   Entry
+}

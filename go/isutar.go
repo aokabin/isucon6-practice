@@ -27,13 +27,14 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func starsHandler(w http.ResponseWriter, r *http.Request) {
-	keyword := r.FormValue("keyword")
+	keyword, _ := url.QueryUnescape(r.FormValue("keyword"))
 	rows, err := db.Query(`SELECT * FROM star WHERE keyword = ?`, keyword)
 	if err != nil && err != sql.ErrNoRows {
 		panicIf(err)
 		return
 	}
 
+	// 最大10個か？
 	stars := make([]Star, 0, 10)
 	for rows.Next() {
 		s := Star{}
@@ -48,8 +49,9 @@ func starsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TODO: 遅いのはこっち
 func starsPostHandler(w http.ResponseWriter, r *http.Request) {
-	keyword := r.FormValue("keyword")
+	keyword, _ := url.QueryUnescape(r.FormValue("keyword"))
 
 	origin := os.Getenv("ISUDA_ORIGIN")
 	if origin == "" {

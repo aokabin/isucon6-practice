@@ -23,6 +23,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
+	"time"
+	"github.com/k0kubun/pp"
 )
 
 const (
@@ -270,12 +272,12 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
 
-	re.HTML(w, http.StatusOK, "keyword", struct {
-		Context context.Context
-		Entry   Entry
-	}{
-		r.Context(), e,
-	})
+	resp := GetKeyWordResponse{
+		Context: r.Context(),
+		Entry: e,
+	}
+
+	re.HTML(w, http.StatusOK, "keyword", resp)
 }
 
 func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -311,6 +313,10 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 // html化する関数かな
 func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []string) string {
+	fmt.Println("===Start===")
+	bf_t := time.Now()
+	fmt.Println(bf_t)
+
 	if content == "" {
 		return ""
 	}
@@ -323,6 +329,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
 		return kw2sha[kw]
 	})
+	// 正規表現で引っかかった物をkey、valueを"isuda_xxxdsfsf"にしたmapを作率つ、文字列を返している
+	pp.Println(content)
 	// なんか謎の文字列 hell: "isuda_oaiwjfoiaew" みたいなのができた、そしてmapにkeywordと共に入っている
 
 	content = html.EscapeString(content)
@@ -337,6 +345,9 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		// contentのhashをlinkに全て書き換える
 		content = strings.Replace(content, hash, link, -1)
 	}
+
+	af_t := time.Now()
+	fmt.Println(af_t.Sub(bf_t))
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
@@ -488,6 +499,10 @@ func main() {
 // NOTE: Original Methods
 
 func setKeywords() []string {
+	fmt.Println("===Start===")
+	bf_t := time.Now()
+	fmt.Println(bf_t)
+
 	rows, err := db.Query(`
 		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
 	`)
@@ -504,6 +519,9 @@ func setKeywords() []string {
 	for _, entry := range entries {
 		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
 	}
+
+	af_t := time.Now()
+	fmt.Println(af_t.Sub(bf_t))
 
 	return keywords
 }
