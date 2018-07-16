@@ -23,7 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
-	"time"
+	//"time"
 	//"github.com/k0kubun/pp"
 )
 
@@ -104,7 +104,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		panicIf(err)
 	}
 	entries := make([]*Entry, 0, 10)
-	keywords := setJoinedKeywords()
+	keywords := setKeywords()
 	for rows.Next() {
 		e := Entry{}
 		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -268,7 +268,7 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 		notFound(w)
 		return
 	}
-	keywords := setJoinedKeywords()
+	keywords := setKeywords()
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
 
@@ -312,14 +312,14 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // html化する関数かな
-func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords string) string {
+func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []string) string {
 	if content == "" {
 		return ""
 	}
 
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
-	re := regexp.MustCompile("("+keywords+")")
-	kw2sha := make(map[string]string)
+	//re := regexp.MustCompile("("+keywords+")")
+	//kw2sha := make(map[string]string)
 	//includedKeys := make(map[string]struct{})
 	//fmt.Println("===Start===")
 	//bf_t := time.Now()
@@ -329,12 +329,12 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 	// ここでやっている後方置換は
 	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
 	// その与えられたやつでmap作ってる
-	content = re.ReplaceAllStringFunc(content, func(kw string) string {
-		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		//includedKeys[kw] = struct{}{}
-		return kw2sha[kw]
-		//return ""
-	})
+	//content = re.ReplaceAllStringFunc(content, func(kw string) string {
+	//	kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+	//	//includedKeys[kw] = struct{}{}
+	//	return kw2sha[kw]
+	//	//return ""
+	//})
 
 
 	// TODO: Q1
@@ -349,17 +349,17 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 	content = html.EscapeString(content)
 
 	// key, value
-	for kw, hash := range kw2sha {
-		// uに "http://hostname/keyword/実際のkeyword" が入る
-		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-		panicIf(err)
-		// keywordをhtml的にescapeしたリンクにする
-		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		// contentのhashをlinkに全て書き換える
-		// ここでやっているのは、hash文字列をlinkに差し替えること
-		// ということは、別に最初からkeywordでいいのでは...？
-		content = strings.Replace(content, hash, link, -1)
-	}
+	//for kw, hash := range kw2sha {
+	//	// uに "http://hostname/keyword/実際のkeyword" が入る
+	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+	//	panicIf(err)
+	//	// keywordをhtml的にescapeしたリンクにする
+	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+	//	// contentのhashをlinkに全て書き換える
+	//	// ここでやっているのは、hash文字列をlinkに差し替えること
+	//	// ということは、別に最初からkeywordでいいのでは...？
+	//	content = strings.Replace(content, hash, link, -1)
+	//}
 
 	// Q1
 	//for kw, _ := range includedKeys {
@@ -368,6 +368,13 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
 	//	content = strings.Replace(content, kw, link, -1)
 	//}
+
+	for _, kw := range keywords {
+		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+		panicIf(err)
+		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+		content = strings.Replace(content, kw, link, -1)
+	}
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
@@ -518,11 +525,7 @@ func main() {
 
 // NOTE: Original Methods
 
-func setJoinedKeywords() string {
-	fmt.Println("===Start===")
-	bf_t := time.Now()
-	fmt.Println(bf_t)
-
+func setKeywords() []string {
 	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
 	rows, err := db.Query(`
 		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
@@ -541,10 +544,5 @@ func setJoinedKeywords() string {
 		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
 	}
 
-	af_t := time.Now()
-	fmt.Println(af_t.Sub(bf_t))
-
-	joinedKeywords := strings.Join(keywords, "|")
-
-	return joinedKeywords
+	return keywords
 }
