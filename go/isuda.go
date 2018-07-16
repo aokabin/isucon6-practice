@@ -102,6 +102,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		panicIf(err)
 	}
 	entries := make([]*Entry, 0, 10)
+	keywords := make([]string, 0)
 	for rows.Next() {
 		e := Entry{}
 		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -305,13 +306,15 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func htmlify(w http.ResponseWriter, r *http.Request, content string) string {
+// html化する関数かな
+func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []string) string {
 	if content == "" {
 		return ""
 	}
 	rows, err := db.Query(`
 		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
 	`)
+	// ここ、全探索
 	panicIf(err)
 	entries := make([]*Entry, 0, 500)
 	for rows.Next() {
@@ -321,24 +324,38 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string) string {
 		entries = append(entries, &e)
 	}
 	rows.Close()
+	// entryを取ってきて
 
 	keywords := make([]string, 0, 500)
+	// 全てのentryのkeywordを文字列正規表現化してkeywordsにappend
 	for _, entry := range entries {
 		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
 	}
+
+	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
 	re := regexp.MustCompile("("+strings.Join(keywords, "|")+")")
 	kw2sha := make(map[string]string)
+	// 後方置換やっているらしい
 	content = re.ReplaceAllStringFunc(content, func(kw string) string {
 		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
 		return kw2sha[kw]
 	})
+	// なんか謎の文字列 hell: "isuda_oaiwjfoiaew" みたいなのができた、そしてmapにkeywordと共に入っている
+
 	content = html.EscapeString(content)
+
+	// key, value
 	for kw, hash := range kw2sha {
+		// uに"hostname/keyword/実際のkeyword"が入る
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
+		// keywordをhtml的にescapeしたリンクにする
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+		// contentのhashをlinkに全て書き換える
 		content = strings.Replace(content, hash, link, -1)
 	}
+
+	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
 }
 
@@ -481,4 +498,29 @@ func main() {
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	log.Fatal(http.ListenAndServe(":5000", r))
+}
+
+
+
+// NOTE: Original Methods
+
+func setKeywords() []string {
+	rows, err := db.Query(`
+		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
+	`)
+	panicIf(err)
+	entries := make([]*Entry, 0)
+	for rows.Next() {
+		e := Entry{}
+		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
+		panicIf(err)
+		entries = append(entries, &e)
+	}
+	rows.Close()
+	keywords := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
+	}
+
+	return keywords
 }
