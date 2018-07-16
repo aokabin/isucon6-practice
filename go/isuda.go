@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
-	"github.com/k0kubun/pp"
 )
 
 const (
@@ -268,8 +267,6 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 	keywords := setKeywords()
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
-
-	pp.Println(e)
 
 	re.HTML(w, http.StatusOK, "keyword", struct {
 		Context context.Context
