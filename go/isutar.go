@@ -49,7 +49,7 @@ func starsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// TODO: 遅いのはこっち
+// TODO: 遅いのはこっち?
 func starsPostHandler(w http.ResponseWriter, r *http.Request) {
 	keyword, _ := url.QueryUnescape(r.FormValue("keyword"))
 
