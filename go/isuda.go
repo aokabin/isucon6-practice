@@ -24,7 +24,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
 	"time"
-	"github.com/k0kubun/pp"
+	//"github.com/k0kubun/pp"
 )
 
 const (
@@ -319,54 +319,55 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords st
 
 	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
 	re := regexp.MustCompile("("+keywords+")")
-	//kw2sha := make(map[string]string)
-	includedKeys := make(map[string]struct{})
-	fmt.Println("===Start===")
-	bf_t := time.Now()
-	fmt.Println(bf_t)
+	kw2sha := make(map[string]string)
+	//includedKeys := make(map[string]struct{})
+	//fmt.Println("===Start===")
+	//bf_t := time.Now()
+	//fmt.Println(bf_t)
 	// 後方置換やっているらしい
 	// TODO: P1
 	// ここでやっている後方置換は
 	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
 	// その与えられたやつでmap作ってる
-	_ = re.ReplaceAllStringFunc(content, func(kw string) string {
-		//kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		includedKeys[kw] = struct{}{}
-		return ""
+	content = re.ReplaceAllStringFunc(content, func(kw string) string {
+		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+		//includedKeys[kw] = struct{}{}
+		return kw2sha[kw]
+		//return ""
 	})
 
 
 	// TODO: Q1
 	// 一致するキーワード抜き出した、けどこれは重複している！
 	//includedKeys := re.FindAllString(content, -1)
-	pp.Println(includedKeys)
+	//pp.Println(includedKeys)
 
-	af_t := time.Now()
-	fmt.Println(af_t.Sub(bf_t))
+	//af_t := time.Now()
+	//fmt.Println(af_t.Sub(bf_t))
 
 	// ここでcontentをescape
 	content = html.EscapeString(content)
 
 	// key, value
-	//for kw, hash := range kw2sha {
-	//	// uに "http://hostname/keyword/実際のkeyword" が入る
-	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-	//	panicIf(err)
-	//	// keywordをhtml的にescapeしたリンクにする
-	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-	//	// contentのhashをlinkに全て書き換える
-	//	// ここでやっているのは、hash文字列をlinkに差し替えること
-	//	// ということは、別に最初からkeywordでいいのでは...？
-	//	content = strings.Replace(content, hash, link, -1)
-	//}
-
-	// Q1
-	for kw, _ := range includedKeys {
+	for kw, hash := range kw2sha {
+		// uに "http://hostname/keyword/実際のkeyword" が入る
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
+		// keywordをhtml的にescapeしたリンクにする
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		content = strings.Replace(content, kw, link, -1)
+		// contentのhashをlinkに全て書き換える
+		// ここでやっているのは、hash文字列をlinkに差し替えること
+		// ということは、別に最初からkeywordでいいのでは...？
+		content = strings.Replace(content, hash, link, -1)
 	}
+
+	// Q1
+	//for kw, _ := range includedKeys {
+	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+	//	panicIf(err)
+	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+	//	content = strings.Replace(content, kw, link, -1)
+	//}
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
