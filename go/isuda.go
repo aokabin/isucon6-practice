@@ -321,29 +321,55 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		return ""
 	}
 
-	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
-	re := regexp.MustCompile("("+strings.Join(keywords, "|")+")")
-	kw2sha := make(map[string]string)
-	// 後方置換やっているらしい
-	content = re.ReplaceAllStringFunc(content, func(kw string) string {
-		kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		return kw2sha[kw]
-	})
-	// 正規表現で引っかかった物をkey、valueを"isuda_xxxdsfsf"にしたmapを作率つ、文字列を返している
-	pp.Println(content)
-	// なんか謎の文字列 hell: "isuda_oaiwjfoiaew" みたいなのができた、そしてmapにkeywordと共に入っている
 
+
+	joinedKeywords := strings.Join(keywords, "|")
+	//pp.Println(joinedKeywords)
+
+	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
+	re := regexp.MustCompile("("+joinedKeywords+")")
+	//kw2sha := make(map[string]string)
+	//kw2sha := make(map[string]struct{})
+	// 後方置換やっているらしい
+	// TODO: P1
+	// ここでやっている後方置換は
+	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
+	// その与えられたやつでmap作ってる
+	//content = re.ReplaceAllStringFunc(content, func(kw string) string {
+	//	kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+	//	kw2sha[kw] = struct{}{}
+	//})
+
+	// TODO: Q1
+	// 一致するキーワード抜き出した
+	includedKeys := re.FindAllString(content, -1)
+
+
+	// contentは、元のcontentの置換を繰り返した文字列が入っている
+	pp.Println(content)
+
+	// ここでcontentをescape
 	content = html.EscapeString(content)
 
 	// key, value
-	for kw, hash := range kw2sha {
-		// uに"hostname/keyword/実際のkeyword"が入る
+	//for kw, hash := range kw2sha {
+	//	// uに "http://hostname/keyword/実際のkeyword" が入る
+	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+	//	panicIf(err)
+	//	// keywordをhtml的にescapeしたリンクにする
+	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+	//	// contentのhashをlinkに全て書き換える
+	//	// ここでやっているのは、hash文字列をlinkに差し替えること
+	//	// ということは、別に最初からkeywordでいいのでは...？
+	//	content = strings.Replace(content, hash, link, -1)
+	//}
+
+	// Q1
+	for _, kw := range includedKeys {
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
-		// keywordをhtml的にescapeしたリンクにする
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		// contentのhashをlinkに全て書き換える
-		content = strings.Replace(content, hash, link, -1)
+		content = strings.Replace(content, kw, link, -1)
 	}
 
 	af_t := time.Now()
