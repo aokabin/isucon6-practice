@@ -93,6 +93,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	page, _ := strconv.Atoi(p)
 
+	// このrowsは全データ取ってきている、使うのかな？
 	rows, err := db.Query(fmt.Sprintf(
 		"SELECT * FROM entry ORDER BY updated_at DESC LIMIT %d OFFSET %d",
 		perPage, perPage*(page-1),
@@ -126,15 +127,15 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		pages = append(pages, i)
 	}
 
-	re.HTML(w, http.StatusOK, "index", struct {
-		Context  context.Context
-		Entries  []*Entry
-		Page     int
-		LastPage int
-		Pages    []int
-	}{
-		r.Context(), entries, page, lastPage, pages,
-	})
+	topResponse := TopResponse{
+		Context: r.Context(),
+		Entries: entries,
+		Page: page,
+		LastPage: lastPage,
+		Pages: pages,
+	}
+
+	re.HTML(w, http.StatusOK, "index", topResponse)
 }
 
 func robotsHandler(w http.ResponseWriter, r *http.Request) {

@@ -36,3 +36,11 @@ type EntryWithCtx struct {
 	Context context.Context
 	Entry   Entry
 }
+
+type TopResponse struct {
+	Context  context.Context
+	Entries  []*Entry
+	Page     int
+	LastPage int
+	Pages    []int
+}
