@@ -25,7 +25,7 @@ import (
 	"github.com/unrolled/render"
 	//"time"
 	//"github.com/k0kubun/pp"
-	"github.com/k0kubun/pp"
+	_ "net/http/pprof"
 )
 
 const (
@@ -399,7 +399,6 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		content = strings.Replace(content, hash, link, -1)
 	}
 
-	pp.Println(content)
 
 	// 最後にcontentの改行をbrに書き換えて終わり
 	return strings.Replace(content, "\n", "<br />\n", -1)
@@ -454,6 +453,9 @@ func getSession(w http.ResponseWriter, r *http.Request) *sessions.Session {
 }
 
 func main() {
+	go func() {
+	        log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	host := os.Getenv("ISUDA_DB_HOST")
 	if host == "" {
 		host = "localhost"
@@ -574,5 +576,5 @@ func setKeywords() []string {
 
 func joinedKeyWords(keywords []string) string {
 	return strings.Join(keywords, "|")
-
 }
+
