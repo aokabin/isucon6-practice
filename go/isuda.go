@@ -316,10 +316,20 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	}
 	// TODO:A3 string.Replacerを使ってみる
 
+	// indexがあるやつだけに絞る
+
+	includedKeywords := []string{}
+
+	for _, kw := range keywords {
+		if strings.Index(content, kw) != -1 {
+			includedKeywords = append(includedKeywords, kw)
+		}
+	}
+
 	hashStrings := []string{}
 	linkStrings := []string{}
 
-	for _, kw := range keywords {
+	for _, kw := range includedKeywords {
 		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
 		uri := baseUrl.String()+"/keyword/" + pathURIEscape(kw)
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
