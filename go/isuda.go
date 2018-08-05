@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -23,8 +22,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
-	//"time"
-	//"github.com/k0kubun/pp"
 	_ "net/http/pprof"
 )
 
@@ -319,21 +316,33 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	}
 	// TODO:A3 string.Replacerを使ってみる
 
-	newOldkeywords := []string{}
+	includedKeywords := make([]string, 0, 1000)
+
 	for _, kw := range keywords {
-		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-		panicIf(err)
-		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		newOldkeywords = append(newOldkeywords, kw, link)
+		if strings.Index(content, kw) != -1 {
+			includedKeywords = append(includedKeywords, kw)
+		}
 	}
 
+	hashStrings := make([]string, 0, len(includedKeywords))
+	linkStrings := make([]string, 0, len(includedKeywords))
+
+	for _, kw := range includedKeywords {
+		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+		uri := baseUrl.String()+"/keyword/" + pathURIEscape(kw)
+		link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
+		hashStrings = append(hashStrings, kw, hash)
+		linkStrings = append(linkStrings, hash, link)
+	}
+
+	hashReplacer := strings.NewReplacer(hashStrings...)
+	linkReplacer := strings.NewReplacer(linkStrings...)
+
+	content = hashReplacer.Replace(content)
 	content = html.EscapeString(content)
+	content = linkReplacer.Replace(content)
 
-	repracer := strings.NewReplacer(newOldkeywords...)
-
-	newContent := repracer.Replace(content)
-
-	return strings.Replace(newContent, "\n", "<br />\n", -1)
+	return strings.Replace(content, "\n", "<br />\n", -1)
 }
 
 func loadStars(keyword string) []*Star {
@@ -500,7 +509,7 @@ func setKeywords() []string {
 	rows.Close()
 	keywords := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
+		keywords = append(keywords, entry.Keyword)
 	}
 
 	return keywords
