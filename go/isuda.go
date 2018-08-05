@@ -326,8 +326,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		}
 	}
 
-	hashStrings := make([]string, 0, 14000)
-	linkStrings := make([]string, 0, 14000)
+	hashStrings := make([]string, 0, len(includedKeywords))
+	linkStrings := make([]string, 0, len(includedKeywords))
 
 	for _, kw := range includedKeywords {
 		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
