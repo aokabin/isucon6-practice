@@ -340,17 +340,38 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 
 	// TODO: Q2
 	// 長いものからhashにすることで、含む短い単語をリンクにさせないようにしている
-	hashedContent := content
-	includedKeys := make(map[string]string)
+	//hashedContent := content
+	//includedKeys := make(map[string]string)
+	//for _, kw := range keywords {
+	//	if strings.Index(content, kw) != -1 {
+	//		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+	//		includedKeys[kw] = hash
+	//		hashedContent = strings.Replace(hashedContent, kw, hash, -1)
+	//	}
+	//}
+
+	// TODO:A3 string.Replacerを使ってみる
+
+	newOldkeywords := []string{}
 	for _, kw := range keywords {
-		if strings.Index(content, kw) != -1 {
-			hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-			includedKeys[kw] = hash
-			hashedContent = strings.Replace(hashedContent, kw, hash, -1)
-		}
+		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+		panicIf(err)
+		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+		newOldkeywords = append(newOldkeywords, kw, link)
 	}
 
-	content = hashedContent
+	content = html.EscapeString(content)
+
+	repracer := strings.NewReplacer(newOldkeywords...)
+
+	newContent := repracer.Replace(content)
+
+
+	// TODO:A3 ここまで
+
+
+
+	//content = hashedContent
 
 	// TODO: Q1
 	// 一致するキーワード抜き出した、けどこれは重複している！
@@ -361,7 +382,7 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	//fmt.Println(af_t.Sub(bf_t))
 
 	// ここでcontentをescape
-	content = html.EscapeString(content)
+	//content = html.EscapeString(content)
 
 	// key, value
 	//for kw, hash := range kw2sha {
@@ -392,16 +413,16 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	//}
 
 	// TODO: Q2
-	for kw, hash := range includedKeys {
-		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-		panicIf(err)
-		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		content = strings.Replace(content, hash, link, -1)
-	}
+	//for kw, hash := range includedKeys {
+	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
+	//	panicIf(err)
+	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+	//	content = strings.Replace(content, hash, link, -1)
+	//}
 
 
 	// 最後にcontentの改行をbrに書き換えて終わり
-	return strings.Replace(content, "\n", "<br />\n", -1)
+	return strings.Replace(newContent, "\n", "<br />\n", -1)
 }
 
 func loadStars(keyword string) []*Star {
