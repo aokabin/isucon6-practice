@@ -316,20 +316,25 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	}
 	// TODO:A3 string.Replacerを使ってみる
 
-	newOldkeywords := []string{}
+	hashStrings := []string{}
+	linkStrings := []string{}
+
 	for _, kw := range keywords {
+		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
 		uri := baseUrl.String()+"/keyword/" + pathURIEscape(kw)
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
-		newOldkeywords = append(newOldkeywords, kw, link)
+		hashStrings = append(hashStrings, kw, hash)
+		linkStrings = append(linkStrings, hash, link)
 	}
 
+	hashReplacer := strings.NewReplacer(hashStrings...)
+	linkReplacer := strings.NewReplacer(linkStrings...)
+
+	content = hashReplacer.Replace(content)
 	content = html.EscapeString(content)
+	content = linkReplacer.Replace(content)
 
-	repracer := strings.NewReplacer(newOldkeywords...)
-
-	newContent := repracer.Replace(content)
-
-	return strings.Replace(newContent, "\n", "<br />\n", -1)
+	return strings.Replace(content, "\n", "<br />\n", -1)
 }
 
 func loadStars(keyword string) []*Star {
