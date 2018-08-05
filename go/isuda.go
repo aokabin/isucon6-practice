@@ -318,7 +318,7 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 
 	// indexがあるやつだけに絞る
 
-	includedKeywords := []string{}
+	includedKeywords := make([]string, 0, len(keywords))
 
 	for _, kw := range keywords {
 		if strings.Index(content, kw) != -1 {
@@ -326,8 +326,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 		}
 	}
 
-	hashStrings := []string{}
-	linkStrings := []string{}
+	hashStrings := make([]string, 0, 14000)
+	linkStrings := make([]string, 0, 14000)
 
 	for _, kw := range includedKeywords {
 		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
