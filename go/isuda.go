@@ -23,8 +23,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
-	"time"
-	"github.com/k0kubun/pp"
+	//"time"
+	//"github.com/k0kubun/pp"
+	_ "net/http/pprof"
 )
 
 const (
@@ -104,7 +105,7 @@ func topHandler(w http.ResponseWriter, r *http.Request) {
 		panicIf(err)
 	}
 	entries := make([]*Entry, 0, 10)
-	keywords := setJoinedKeywords()
+	keywords := setKeywords()
 	for rows.Next() {
 		e := Entry{}
 		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
@@ -268,7 +269,7 @@ func keywordByKeywordHandler(w http.ResponseWriter, r *http.Request) {
 		notFound(w)
 		return
 	}
-	keywords := setJoinedKeywords()
+	keywords := setKeywords()
 	e.Html = htmlify(w, r, e.Description, keywords)
 	e.Stars = loadStars(e.Keyword)
 
@@ -312,64 +313,27 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // html化する関数かな
-func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords string) string {
+func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []string) string {
 	if content == "" {
 		return ""
 	}
+	// TODO:A3 string.Replacerを使ってみる
 
-	// TODO: keywordを全部joinして、 ([a]|[b]|......|[zzzz]) みたいな正規表現になっている
-	re := regexp.MustCompile("("+keywords+")")
-	//kw2sha := make(map[string]string)
-	includedKeys := make(map[string]struct{})
-	fmt.Println("===Start===")
-	bf_t := time.Now()
-	fmt.Println(bf_t)
-	// 後方置換やっているらしい
-	// TODO: P1
-	// ここでやっている後方置換は
-	// contentからjoinedKeywordsの正規表現の一致したものを抜き出し、kwに与える処理
-	// その与えられたやつでmap作ってる
-	_ = re.ReplaceAllStringFunc(content, func(kw string) string {
-		//kw2sha[kw] = "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		includedKeys[kw] = struct{}{}
-		return ""
-	})
-
-
-	// TODO: Q1
-	// 一致するキーワード抜き出した、けどこれは重複している！
-	//includedKeys := re.FindAllString(content, -1)
-	pp.Println(includedKeys)
-
-	af_t := time.Now()
-	fmt.Println(af_t.Sub(bf_t))
-
-	// ここでcontentをescape
-	content = html.EscapeString(content)
-
-	// key, value
-	//for kw, hash := range kw2sha {
-	//	// uに "http://hostname/keyword/実際のkeyword" が入る
-	//	u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-	//	panicIf(err)
-	//	// keywordをhtml的にescapeしたリンクにする
-	//	link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-	//	// contentのhashをlinkに全て書き換える
-	//	// ここでやっているのは、hash文字列をlinkに差し替えること
-	//	// ということは、別に最初からkeywordでいいのでは...？
-	//	content = strings.Replace(content, hash, link, -1)
-	//}
-
-	// Q1
-	for kw, _ := range includedKeys {
+	newOldkeywords := []string{}
+	for _, kw := range keywords {
 		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
 		panicIf(err)
 		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
-		content = strings.Replace(content, kw, link, -1)
+		newOldkeywords = append(newOldkeywords, kw, link)
 	}
 
-	// 最後にcontentの改行をbrに書き換えて終わり
-	return strings.Replace(content, "\n", "<br />\n", -1)
+	content = html.EscapeString(content)
+
+	repracer := strings.NewReplacer(newOldkeywords...)
+
+	newContent := repracer.Replace(content)
+
+	return strings.Replace(newContent, "\n", "<br />\n", -1)
 }
 
 func loadStars(keyword string) []*Star {
@@ -421,6 +385,9 @@ func getSession(w http.ResponseWriter, r *http.Request) *sessions.Session {
 }
 
 func main() {
+	go func() {
+	        log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	host := os.Getenv("ISUDA_DB_HOST")
 	if host == "" {
 		host = "localhost"
@@ -517,20 +484,16 @@ func main() {
 
 // NOTE: Original Methods
 
-func setJoinedKeywords() string {
-	fmt.Println("===Start===")
-	bf_t := time.Now()
-	fmt.Println(bf_t)
-
+func setKeywords() []string {
 	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
 	rows, err := db.Query(`
-		SELECT * FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
+		SELECT keyword FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
 	`)
 	panicIf(err)
 	entries := make([]*Entry, 0)
 	for rows.Next() {
 		e := Entry{}
-		err := rows.Scan(&e.ID, &e.AuthorID, &e.Keyword, &e.Description, &e.UpdatedAt, &e.CreatedAt)
+		err := rows.Scan(&e.Keyword)
 		panicIf(err)
 		entries = append(entries, &e)
 	}
@@ -540,10 +503,10 @@ func setJoinedKeywords() string {
 		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
 	}
 
-	af_t := time.Now()
-	fmt.Println(af_t.Sub(bf_t))
-
-	joinedKeywords := strings.Join(keywords, "|")
-
-	return joinedKeywords
+	return keywords
 }
+
+func joinedKeyWords(keywords []string) string {
+	return strings.Join(keywords, "|")
+}
+
