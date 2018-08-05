@@ -499,7 +499,7 @@ func setKeywords() []string {
 	rows.Close()
 	keywords := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		keywords = append(keywords, regexp.QuoteMeta(entry.Keyword))
+		keywords = append(keywords, entry.Keyword)
 	}
 
 	return keywords
