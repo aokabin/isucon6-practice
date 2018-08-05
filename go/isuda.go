@@ -40,6 +40,9 @@ var (
 	store   *sessions.CookieStore
 
 	errInvalidUser = errors.New("Invalid User")
+
+	keywordsMap map[int][]string
+	lengthList []int // [40, 0, 0, ... 12]みたいなリストで、0番目には今最大の文字数が入って、それ以外はその番目がその要素の数
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -76,6 +79,8 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Get(fmt.Sprintf("%s/initialize", isutarEndpoint))
 	panicIf(err)
 	defer resp.Body.Close()
+
+	keywordsMap, lengthList = createKeywords()
 
 	re.JSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
@@ -172,6 +177,14 @@ func keywordPostHandler(w http.ResponseWriter, r *http.Request) {
 		author_id = ?, keyword = ?, description = ?, updated_at = NOW()
 	`, userID, keyword, description, userID, keyword, description)
 	panicIf(err)
+
+	keywordLength := len(keyword)
+	if _, ok := keywordsMap[keywordLength]; !ok {
+		keywordsMap[keywordLength] = make([]string, 0)
+	}
+	keywordsMap[keywordLength] = append(keywordsMap[keywordLength], keyword)
+	lengthList[keywordLength]++
+
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -306,6 +319,23 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = db.Exec(`DELETE FROM entry WHERE keyword = ?`, keyword)
 	panicIf(err)
+
+	kLen := len(keyword)
+	for i, v := range keywordsMap[kLen] {
+		if v == keyword {
+			keywordsMap[kLen] = append(keywordsMap[kLen][:i], keywordsMap[kLen][i+1:]...)
+		}
+	}
+	lengthList[kLen]--
+	if lengthList[kLen] == 0 && lengthList[0] == kLen {
+		for i := lengthList[0]; i > 0; i-- {
+			if lengthList[i] > 1 {
+				lengthList[0] = i
+				break
+			}
+		}
+	}
+
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -495,21 +525,29 @@ func main() {
 
 func setKeywords() []string {
 	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
-	rows, err := db.Query(`
-		SELECT keyword FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
-	`)
-	panicIf(err)
-	entries := make([]*Entry, 0)
-	for rows.Next() {
-		e := Entry{}
-		err := rows.Scan(&e.Keyword)
-		panicIf(err)
-		entries = append(entries, &e)
-	}
-	rows.Close()
-	keywords := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		keywords = append(keywords, entry.Keyword)
+	//rows, err := db.Query(`
+	//	SELECT keyword FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
+	//`)
+	//panicIf(err)
+	//entries := make([]*Entry, 0)
+	//for rows.Next() {
+	//	e := Entry{}
+	//	err := rows.Scan(&e.Keyword)
+	//	panicIf(err)
+	//	entries = append(entries, &e)
+	//}
+	//rows.Close()
+	//keywords := make([]string, 0, len(entries))
+	//for _, entry := range entries {
+	//	keywords = append(keywords, entry.Keyword)
+	//}
+
+	keywords := make([]string, 0)
+
+	for i := lengthList[0]; i > 0; i-- {
+		if v, ok := keywordsMap[i]; ok {
+			keywords = append(keywords, v...)
+		}
 	}
 
 	return keywords
@@ -519,3 +557,32 @@ func joinedKeyWords(keywords []string) string {
 	return strings.Join(keywords, "|")
 }
 
+type Keyword struct {
+	Keyword string
+	Length int
+}
+
+func createKeywords() (map[int][]string, []int) {
+	rows, err := db.Query(`
+		SELECT keyword, CHAR_LENGTH(keyword) as len FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC;
+	`)
+	panicIf(err)
+	keywords := make([]*Keyword, 0)
+	for rows.Next() {
+		k := Keyword{}
+		err := rows.Scan(&k.Keyword, &k.Length)
+		panicIf(err)
+		keywords = append(keywords, &k)
+	}
+	rows.Close()
+	keywordsMap := make(map[int][]string, len(keywords)+1000)
+	lengthList := make([]int, 200, 200) //200文字以上はないという想定
+	lengthList[0] = keywords[0].Length
+
+	for _, k := range keywords {
+		keywordsMap[k.Length] = append(keywordsMap[k.Length], k.Keyword)
+		lengthList[k.Length]++
+	}
+
+	return keywordsMap, lengthList
+}
