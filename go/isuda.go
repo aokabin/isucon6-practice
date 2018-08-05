@@ -318,7 +318,7 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 
 	// indexがあるやつだけに絞る
 
-	includedKeywords := []string{}
+	includedKeywords := make([]string, 0, 1000)
 
 	for _, kw := range keywords {
 		if strings.Index(content, kw) != -1 {
