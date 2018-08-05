@@ -316,8 +316,6 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	}
 	// TODO:A3 string.Replacerを使ってみる
 
-	// indexがあるやつだけに絞る
-
 	includedKeywords := make([]string, 0, 1000)
 
 	for _, kw := range keywords {
