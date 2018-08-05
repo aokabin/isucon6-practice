@@ -321,9 +321,8 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 
 	newOldkeywords := []string{}
 	for _, kw := range keywords {
-		u, err := r.URL.Parse(baseUrl.String()+"/keyword/" + pathURIEscape(kw))
-		panicIf(err)
-		link := fmt.Sprintf("<a href=\"%s\">%s</a>", u, html.EscapeString(kw))
+		uri := baseUrl.String()+"/keyword/" + pathURIEscape(kw)
+		link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
 		newOldkeywords = append(newOldkeywords, kw, link)
 	}
 
