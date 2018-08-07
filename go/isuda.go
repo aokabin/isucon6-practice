@@ -43,6 +43,9 @@ var (
 
 	keywordsMap map[int][]string
 	lengthList []int // [40, 0, 0, ... 12]みたいなリストで、0番目には今最大の文字数が入って、それ以外はその番目がその要素の数
+
+	hashReplacer *strings.Replacer
+	linkReplacer *strings.Replacer
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -80,7 +83,7 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	panicIf(err)
 	defer resp.Body.Close()
 
-	keywordsMap, lengthList = createKeywords()
+	createKeywords()
 
 	re.JSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
@@ -320,6 +323,8 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec(`DELETE FROM entry WHERE keyword = ?`, keyword)
 	panicIf(err)
 
+	// TODO: 関数化したい、deletekeywordsとかで
+
 	kLen := len(keyword)
 	for i, v := range keywordsMap[kLen] {
 		if v == keyword {
@@ -344,30 +349,6 @@ func htmlify(w http.ResponseWriter, r *http.Request, content string, keywords []
 	if content == "" {
 		return ""
 	}
-	// TODO:A3 string.Replacerを使ってみる
-
-	includedKeywords := make([]string, 0, 1000)
-
-	for _, kw := range keywords {
-		if strings.Index(content, kw) != -1 {
-			includedKeywords = append(includedKeywords, kw)
-		}
-	}
-
-	hashStrings := make([]string, 0, len(includedKeywords))
-	linkStrings := make([]string, 0, len(includedKeywords))
-
-	for _, kw := range includedKeywords {
-		hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-		uri := baseUrl.String()+"/keyword/" + pathURIEscape(kw)
-		link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
-		hashStrings = append(hashStrings, kw, hash)
-		linkStrings = append(linkStrings, hash, link)
-	}
-
-	hashReplacer := strings.NewReplacer(hashStrings...)
-	linkReplacer := strings.NewReplacer(linkStrings...)
-
 	content = hashReplacer.Replace(content)
 	content = html.EscapeString(content)
 	content = linkReplacer.Replace(content)
@@ -424,6 +405,10 @@ func getSession(w http.ResponseWriter, r *http.Request) *sessions.Session {
 }
 
 func main() {
+	//go func() {
+	//	log.Println(http.ListenAndServe("localhost:6060", nil))
+	//}()
+
 	host := os.Getenv("ISUDA_DB_HOST")
 	if host == "" {
 		host = "localhost"
@@ -492,7 +477,7 @@ func main() {
 		},
 	})
 
-	keywordsMap, lengthList = createKeywords()
+	createKeywords()
 
 	r := mux.NewRouter()
 	r.UseEncodedPath()
@@ -561,7 +546,7 @@ type Keyword struct {
 	Length int
 }
 
-func createKeywords() (map[int][]string, []int) {
+func createKeywords() {
 	rows, err := db.Query(`
 		SELECT keyword, CHAR_LENGTH(keyword) as len FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC;
 	`)
@@ -574,8 +559,8 @@ func createKeywords() (map[int][]string, []int) {
 		keywords = append(keywords, &k)
 	}
 	rows.Close()
-	keywordsMap := make(map[int][]string, len(keywords)+1000)
-	lengthList := make([]int, 200, 200) //200文字以上はないという想定
+	keywordsMap = make(map[int][]string, len(keywords)+1000)
+	lengthList = make([]int, 200, 200) //200文字以上はないという想定
 	lengthList[0] = keywords[0].Length
 
 	for _, k := range keywords {
@@ -583,5 +568,26 @@ func createKeywords() (map[int][]string, []int) {
 		lengthList[k.Length]++
 	}
 
-	return keywordsMap, lengthList
+	updateReplacer()
+}
+
+func updateReplacer() {
+
+	hashStrings := make([]string, 0, 20000)
+	linkStrings := make([]string, 0, 20000)
+
+	for i := lengthList[0]; i > 0; i-- {
+		if kws, ok := keywordsMap[i]; ok {
+			for _, kw := range kws {
+				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
+				uri := "/keyword/" + pathURIEscape(kw)
+				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
+				hashStrings = append(hashStrings, kw, hash)
+				linkStrings = append(linkStrings, hash, link)
+			}
+		}
+	}
+
+	hashReplacer = strings.NewReplacer(hashStrings...)
+	linkReplacer = strings.NewReplacer(linkStrings...)
 }
