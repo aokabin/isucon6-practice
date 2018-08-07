@@ -492,6 +492,8 @@ func main() {
 		},
 	})
 
+	keywordsMap, lengthList = createKeywords()
+
 	r := mux.NewRouter()
 	r.UseEncodedPath()
 	r.HandleFunc("/", myHandler(topHandler))
