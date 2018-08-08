@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
 	_ "net/http/pprof"
-	"sync"
 )
 
 const (
@@ -42,14 +41,6 @@ var (
 
 	errInvalidUser = errors.New("Invalid User")
 
-	keywordsMap map[int][]string
-	lengthList []int // [40, 0, 0, ... 12]みたいなリストで、0番目には今最大の文字数が入って、それ以外はその番目がその要素の数
-
-	hashReplacer *strings.Replacer
-	linkReplacer *strings.Replacer
-
-	replacerSync sync.RWMutex
-	keywordSync sync.RWMutex
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -510,100 +501,3 @@ func main() {
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	log.Fatal(http.ListenAndServe(":5000", r))
 }
-
-
-
-// NOTE: Original Methods
-
-func setKeywords() []string {
-	// ちょっと勘違いしてたけど、文字列が長いものから順に並べてるだけか
-	//rows, err := db.Query(`
-	//	SELECT keyword FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC
-	//`)
-	//panicIf(err)
-	//entries := make([]*Entry, 0)
-	//for rows.Next() {
-	//	e := Entry{}
-	//	err := rows.Scan(&e.Keyword)
-	//	panicIf(err)
-	//	entries = append(entries, &e)
-	//}
-	//rows.Close()
-	//keywords := make([]string, 0, len(entries))
-	//for _, entry := range entries {
-	//	keywords = append(keywords, entry.Keyword)
-	//}
-
-	keywords := make([]string, 0)
-
-	for i := lengthList[0]; i > 0; i-- {
-		if v, ok := keywordsMap[i]; ok {
-			keywords = append(keywords, v...)
-		}
-	}
-
-	return keywords
-}
-
-func joinedKeyWords(keywords []string) string {
-	return strings.Join(keywords, "|")
-}
-
-type Keyword struct {
-	Keyword string
-	Length int
-}
-
-func createKeywords() {
-	rows, err := db.Query(`
-		SELECT keyword, CHAR_LENGTH(keyword) as len FROM entry ORDER BY CHARACTER_LENGTH(keyword) DESC;
-	`)
-	panicIf(err)
-	keywords := make([]*Keyword, 0)
-	for rows.Next() {
-		k := Keyword{}
-		err := rows.Scan(&k.Keyword, &k.Length)
-		panicIf(err)
-		keywords = append(keywords, &k)
-	}
-	rows.Close()
-	keywordsMap = make(map[int][]string, len(keywords)*2)
-	lengthList = make([]int, 200, 200) //200文字以上はないという想定
-	lengthList[0] = keywords[0].Length
-
-	keywordSync.Lock()
-	for _, k := range keywords {
-		keywordsMap[k.Length] = append(keywordsMap[k.Length], k.Keyword)
-		lengthList[k.Length]++
-	}
-	keywordSync.Unlock()
-}
-
-func updateReplacer() {
-
-	hashStrings := make([]string, 0, 20000)
-	linkStrings := make([]string, 0, 20000)
-
-	keywordSync.RLock()
-	for i := lengthList[0]; i > 0; i-- {
-		if kws, ok := keywordsMap[i]; ok {
-			for _, kw := range kws {
-				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-				uri := "/keyword/" + pathURIEscape(kw)
-				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
-				hashStrings = append(hashStrings, kw, hash)
-				linkStrings = append(linkStrings, hash, link)
-			}
-		}
-	}
-	keywordSync.RUnlock()
-
-	r1 := strings.NewReplacer(hashStrings...)
-	r2 := strings.NewReplacer(linkStrings...)
-
-	replacerSync.Lock()
-	hashReplacer = r1
-	linkReplacer = r2
-	replacerSync.Unlock()
-}
-
