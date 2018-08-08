@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/unrolled/render"
 	_ "net/http/pprof"
+	"sync"
 )
 
 const (
@@ -46,6 +47,9 @@ var (
 
 	hashReplacer *strings.Replacer
 	linkReplacer *strings.Replacer
+
+	replacerSync sync.RWMutex
+	keywordSync sync.RWMutex
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -567,10 +571,12 @@ func createKeywords() {
 	lengthList = make([]int, 200, 200) //200文字以上はないという想定
 	lengthList[0] = keywords[0].Length
 
+	keywordSync.Lock()
 	for _, k := range keywords {
 		keywordsMap[k.Length] = append(keywordsMap[k.Length], k.Keyword)
 		lengthList[k.Length]++
 	}
+	keywordSync.Unlock()
 }
 
 func updateReplacer() {
@@ -578,6 +584,7 @@ func updateReplacer() {
 	hashStrings := make([]string, 0, 20000)
 	linkStrings := make([]string, 0, 20000)
 
+	keywordSync.RLock()
 	for i := lengthList[0]; i > 0; i-- {
 		if kws, ok := keywordsMap[i]; ok {
 			for _, kw := range kws {
@@ -589,8 +596,14 @@ func updateReplacer() {
 			}
 		}
 	}
+	keywordSync.RUnlock()
 
-	hashReplacer = strings.NewReplacer(hashStrings...)
-	linkReplacer = strings.NewReplacer(linkStrings...)
+	r1 := strings.NewReplacer(hashStrings...)
+	r2 := strings.NewReplacer(linkStrings...)
+
+	replacerSync.Lock()
+	hashReplacer = r1
+	linkReplacer = r2
+	replacerSync.Unlock()
 }
 
