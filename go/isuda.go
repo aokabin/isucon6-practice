@@ -589,7 +589,7 @@ func updateReplacer() {
 		if kws, ok := keywordsMap[i]; ok {
 			for _, kw := range kws {
 				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-				uri := HostName+"/keyword/" + pathURIEscape(kw)
+				uri := "http://"+HostName+"/keyword/" + pathURIEscape(kw)
 				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
 				hashStrings = append(hashStrings, kw, hash)
 				linkStrings = append(linkStrings, hash, link)
