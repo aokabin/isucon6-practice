@@ -46,6 +46,8 @@ var (
 
 	hashReplacer *strings.Replacer
 	linkReplacer *strings.Replacer
+
+	HostName string
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -84,7 +86,7 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	createKeywords()
-	updateReplacer(baseUrl.String())
+	updateReplacer()
 
 	re.JSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
@@ -189,7 +191,7 @@ func keywordPostHandler(w http.ResponseWriter, r *http.Request) {
 	keywordsMap[keywordLength] = append(keywordsMap[keywordLength], keyword)
 	lengthList[keywordLength]++
 
-	updateReplacer(baseUrl.String())
+	updateReplacer()
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -342,7 +344,7 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	updateReplacer(baseUrl.String())
+	updateReplacer()
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -456,6 +458,11 @@ func main() {
 		isupamEndpoint = "http://localhost:5050"
 	}
 
+	HostName = os.Getenv("ISUHOST")
+	if HostName == "" {
+		HostName = "127.0.0.1"
+	}
+
 	store = sessions.NewCookieStore([]byte(sessionSecret))
 
 	re = render.New(render.Options{
@@ -481,6 +488,7 @@ func main() {
 	})
 
 	createKeywords()
+	updateReplacer()
 
 	r := mux.NewRouter()
 	r.UseEncodedPath()
@@ -562,7 +570,7 @@ func createKeywords() {
 		keywords = append(keywords, &k)
 	}
 	rows.Close()
-	keywordsMap = make(map[int][]string, len(keywords)+1000)
+	keywordsMap = make(map[int][]string, len(keywords)*2)
 	lengthList = make([]int, 200, 200) //200文字以上はないという想定
 	lengthList[0] = keywords[0].Length
 
@@ -570,10 +578,9 @@ func createKeywords() {
 		keywordsMap[k.Length] = append(keywordsMap[k.Length], k.Keyword)
 		lengthList[k.Length]++
 	}
-
 }
 
-func updateReplacer(uri string) {
+func updateReplacer() {
 
 	hashStrings := make([]string, 0, 20000)
 	linkStrings := make([]string, 0, 20000)
@@ -582,7 +589,7 @@ func updateReplacer(uri string) {
 		if kws, ok := keywordsMap[i]; ok {
 			for _, kw := range kws {
 				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-				uri := uri+"/keyword/" + pathURIEscape(kw)
+				uri := HostName+"/keyword/" + pathURIEscape(kw)
 				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
 				hashStrings = append(hashStrings, kw, hash)
 				linkStrings = append(linkStrings, hash, link)
@@ -593,3 +600,4 @@ func updateReplacer(uri string) {
 	hashReplacer = strings.NewReplacer(hashStrings...)
 	linkReplacer = strings.NewReplacer(linkStrings...)
 }
+
