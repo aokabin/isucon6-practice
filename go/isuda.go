@@ -46,8 +46,6 @@ var (
 
 	hashReplacer *strings.Replacer
 	linkReplacer *strings.Replacer
-
-	HostName string
 )
 
 func setName(w http.ResponseWriter, r *http.Request) error {
@@ -458,11 +456,6 @@ func main() {
 		isupamEndpoint = "http://localhost:5050"
 	}
 
-	HostName = os.Getenv("ISUHOST")
-	if HostName == "" {
-		HostName = "127.0.0.1"
-	}
-
 	store = sessions.NewCookieStore([]byte(sessionSecret))
 
 	re = render.New(render.Options{
@@ -589,7 +582,7 @@ func updateReplacer() {
 		if kws, ok := keywordsMap[i]; ok {
 			for _, kw := range kws {
 				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-				uri := "http://"+HostName+"/keyword/" + pathURIEscape(kw)
+				uri := "/keyword/" + pathURIEscape(kw)
 				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
 				hashStrings = append(hashStrings, kw, hash)
 				linkStrings = append(linkStrings, hash, link)
