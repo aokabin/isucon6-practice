@@ -84,6 +84,7 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	createKeywords()
+	updateReplacer(baseUrl.String())
 
 	re.JSON(w, http.StatusOK, map[string]string{"result": "ok"})
 }
@@ -188,6 +189,7 @@ func keywordPostHandler(w http.ResponseWriter, r *http.Request) {
 	keywordsMap[keywordLength] = append(keywordsMap[keywordLength], keyword)
 	lengthList[keywordLength]++
 
+	updateReplacer(baseUrl.String())
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -340,6 +342,7 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	updateReplacer(baseUrl.String())
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -568,10 +571,9 @@ func createKeywords() {
 		lengthList[k.Length]++
 	}
 
-	updateReplacer()
 }
 
-func updateReplacer() {
+func updateReplacer(uri string) {
 
 	hashStrings := make([]string, 0, 20000)
 	linkStrings := make([]string, 0, 20000)
@@ -580,7 +582,7 @@ func updateReplacer() {
 		if kws, ok := keywordsMap[i]; ok {
 			for _, kw := range kws {
 				hash := "isuda_" + fmt.Sprintf("%x", sha1.Sum([]byte(kw)))
-				uri := "/keyword/" + pathURIEscape(kw)
+				uri := uri+"/keyword/" + pathURIEscape(kw)
 				link := fmt.Sprintf("<a href=\"%s\">%s</a>", uri, html.EscapeString(kw))
 				hashStrings = append(hashStrings, kw, hash)
 				linkStrings = append(linkStrings, hash, link)
