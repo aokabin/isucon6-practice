@@ -105,3 +105,21 @@ func AddKeyword(key string) {
 	updateReplacer()
 }
 
+func DeleteKeyword(key string) {
+	kLen := len(key)
+	for i, v := range keywordsMap[kLen] {
+		if v == key{
+			keywordsMap[kLen] = append(keywordsMap[kLen][:i], keywordsMap[kLen][i+1:]...)
+		}
+	}
+	lengthList[kLen]--
+	if lengthList[kLen] == 0 && lengthList[0] == kLen {
+		for i := lengthList[0]; i > 0; i-- {
+			if lengthList[i] > 1 {
+				lengthList[0] = i
+				break
+			}
+		}
+	}
+	updateReplacer()
+}

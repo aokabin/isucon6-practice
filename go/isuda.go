@@ -316,22 +316,7 @@ func keywordByKeywordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: 関数化したい、deletekeywordsとかで
 
-	kLen := len(keyword)
-	for i, v := range keywordsMap[kLen] {
-		if v == keyword {
-			keywordsMap[kLen] = append(keywordsMap[kLen][:i], keywordsMap[kLen][i+1:]...)
-		}
-	}
-	lengthList[kLen]--
-	if lengthList[kLen] == 0 && lengthList[0] == kLen {
-		for i := lengthList[0]; i > 0; i-- {
-			if lengthList[i] > 1 {
-				lengthList[0] = i
-				break
-			}
-		}
-	}
-	updateReplacer()
+	DeleteKeyword(keyword)
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
