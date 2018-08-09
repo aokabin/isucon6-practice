@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"crypto/sha1"
+	"time"
 )
 
 var (
@@ -17,6 +18,8 @@ var (
 
 	replacerSync sync.RWMutex
 	keywordSync sync.RWMutex
+
+	replacerUpdated time.Time
 )
 
 type Keyword struct {
@@ -35,7 +38,6 @@ func setKeywords() []string {
 
 	return keywords
 }
-
 
 func createKeywords() {
 	rows, err := db.Query(`
@@ -88,5 +90,18 @@ func updateReplacer() {
 	hashReplacer = r1
 	linkReplacer = r2
 	replacerSync.Unlock()
+}
+
+func AddKeyword(key string) {
+	keywordLength := len(key)
+	if _, ok := keywordsMap[keywordLength]; !ok {
+		keywordsMap[keywordLength] = make([]string, 0)
+	}
+	keywordSync.Lock()
+	keywordsMap[keywordLength] = append(keywordsMap[keywordLength], key)
+	keywordSync.Unlock()
+	lengthList[keywordLength]++
+
+	updateReplacer()
 }
 

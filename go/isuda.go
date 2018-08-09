@@ -177,14 +177,8 @@ func keywordPostHandler(w http.ResponseWriter, r *http.Request) {
 	`, userID, keyword, description, userID, keyword, description)
 	panicIf(err)
 
-	keywordLength := len(keyword)
-	if _, ok := keywordsMap[keywordLength]; !ok {
-		keywordsMap[keywordLength] = make([]string, 0)
-	}
-	keywordsMap[keywordLength] = append(keywordsMap[keywordLength], keyword)
-	lengthList[keywordLength]++
-
-	updateReplacer()
+	// TODO: AddKeyword?
+	AddKeyword(keyword)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
